@@ -1,5 +1,5 @@
 - 👋 Hi, I’m @bab226
-- 👀 I’m a researcher in the Biophysics Department at Yale University. I work in Dr. Zachary Levine's lab and am interested in simulating molecular motions for single-molecule experiments and simulations and their sequential analysis.
+- 👀 I’m a researcher in the Biophysics Department at Yale University. I work in Dr. Zachary Levine's lab (http://www.zachlevine.com/) and am interested in simulating molecular motions for single-molecule experiments and simulations and their sequential analysis.
 - 🌱 I’m currently working on a single molecule simulator for FCS experiments and analysis.
 - 📫 How to reach me: bryan.bogin@yale.edu, https://www.linkedin.com/in/bryan-bogin150/ 
 
