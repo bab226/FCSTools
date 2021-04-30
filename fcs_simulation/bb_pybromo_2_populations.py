@@ -10,7 +10,7 @@ Run using terminal unless troubleshooting.
 By Bryan Bogin
 Updated 4/27/21
 """
-print('Adapted from James Losey, Moradi Lab, Arkansas')
+print('Adapted from James Losey, Moradi Lab, Arkansas and PyBroMo Open Source Software')
 
 import sys
 from pathlib import Path
