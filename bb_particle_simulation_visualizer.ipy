@@ -1,0 +1,159 @@
+#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
+"""
+Particle Simulator Visualizer (PSV)
+Updated on Thu Apr 29 18:01:39 2021
+
+@author: Bryan Bogin
+"""
+
+###Packages to import:
+import numpy as np
+import tables
+import matplotlib.pyplot as plt
+import pybromo as pbm
+print('Numpy version:', np.__version__)
+print('PyTables version:', tables.__version__)
+print('PyBroMo version:', pbm.__version__)
+plt.rcParams['path.simplify_threshold'] = 1.0
+print('Numpy version:', np.__version__)
+print('Matplotlib version:', plt.matplotlib.__version__)
+print('PyTables version:', tables.__version__)
+print('PyBroMo version:', pbm.__version__)
+
+#%%
+###Function definitions:
+def plot_emission(S, s=0, size=2e6, slice_=None, em_th=0.01, save=False, figsize=(9, 4.5)):
+    if slice_ is None:
+        slice_ = (s*size, (s+1)*size)
+    slice_ = slice(*slice_)
+    em = S.emission[:, slice_]
+    dec = 1 if slice_.step is None else slice_.step
+    t_step = S.t_step*dec
+    t = np.arange(em.shape[1])*(t_step*1e3)
+    fig, ax = plt.subplots(figsize=figsize)
+    for ip, em_ip in enumerate(em):
+        if em_ip.max() < em_th: continue
+        plt.plot(t, em_ip, label='P%d' % ip)
+    ax.set_xlabel('Time (ms)')
+    
+    rs_hash = pbm.hashfunc(S.traj_group._v_attrs['init_random_state'])[:3]
+    ax.set_title('%ds ID-EID: %d-%d, sim rs = %s, part rs = %s' %\
+              (s, S.ID, S.EID, rs_hash, S.particles.rs_hash[:3]))
+    ax.legend(bbox_to_anchor=(1.03, 1), loc=2, borderaxespad=0.)
+    if save:
+        plt.savefig('em %ds ID-EID %d-%d, rs=%s' %\
+                (s, S.ID, S.EID, rs_hash), 
+                dpi=200, bbox_inches='tight')
+    #plt.close(fig)
+    #display(fig)
+    #fig.clear()    
+
+def plot_tracks_r(S, slice_=None, particles=None):
+    if slice_ is None:
+        slice_ = (0, 100e3, 100)
+    duration = (slice_[1] - slice_[0])*S.t_step
+    slice_ = slice(*slice_)
+    em = S.emission[:, slice_]
+    t = np.arange(em.shape[1])*(S.t_step*1e3)
+    
+    if particles is None:
+        particles = range(S.num_particles)
+    
+    fig, ax = plt.subplots(1, 1, figsize=(11, 5), sharey=True)
+    plt.subplots_adjust(left=0.05, right=0.93, top=0.95, bottom=0.09,
+                        wspace=0.05)
+    plt.suptitle("Total: %.1f s, Visualized: %.2f ms" % (
+                 S.t_step*S.n_samples, duration*1e3))
+
+    for ip in particles:
+        x, y, z = S.position[ip, :, slice_]
+        r = np.sqrt(x**2 + y**2 + z**2) * 1e6
+        plot_kwargs = dict(ls='', marker='o', mew=0, ms=4, alpha=0.8, 
+                           label='P%d' % ip)
+        ax.plot(t, r, **plot_kwargs)
+
+    ax.set_ylabel("r (um)")
+    ax.legend(bbox_to_anchor=(1.01, 1), loc=2, borderaxespad=0.)
+    ax.set_ylim(0)
+    
+def plot_tracks(S, slice_=None, particles=None, step=0, chunk=0):
+    #My hack to chunk data:
+    end = start + (S.t_max/S.t_step)/num_chunks
+    time = step*S.t_step
+    if slice_ is None:
+        slice_ = (0, 100e3, 100)
+    duration = (slice_[1] - slice_[0])*S.t_step
+    slice_ = slice(*slice_)
+    
+    if particles is None:
+        particles = range(S.num_particles)
+    
+    fig, AX = plt.subplots(1, 2, figsize=(11, 5), sharey=True)
+    plt.subplots_adjust(left=0.05, right=0.93, top=0.95, bottom=0.09,
+                        wspace=0.05)
+    plt.suptitle("Time: %.2f s, Visualized: %.2f ms, Chunk #%.2f" % (
+                 time, duration*1e3, chunk))
+
+    for ip in particles:
+        x, y, z = S.position[ip, :, slice_]
+        x0, y0, z0 = S.particles[ip].r0
+        plot_kwargs = dict(ls='', marker='o', mew=0, ms=2, alpha=0.5, 
+                           label='P%d' % ip)
+        l, = AX[0].plot(x*1e6, y*1e6, **plot_kwargs)
+        AX[1].plot(z*1e6, y*1e6, color=l.get_color(), **plot_kwargs)
+        #AX[1].plot([x0*1e6], [y0*1e6], 'o', color=l.get_color())
+        #AX[0].plot([x0*1e6], [z0*1e6], 'o', color=l.get_color())
+
+    AX[0].set_xlabel("x (um)")
+    AX[0].set_ylabel("y (um)")
+    AX[1].set_xlabel("z (um)")
+
+    sig = np.array([0.2, 0.2, 0.6])*1e-6
+    ## Draw an outline of the PSF
+    a = np.arange(360)/360.*2*np.pi
+    rx, ry, rz = (sig)  # draw radius at 3 sigma
+    AX[0].plot((rx*np.cos(a))*1e6, (ry*np.sin(a))*1e6, lw=2, color='k')
+    AX[1].plot((rz*np.cos(a))*1e6, (ry*np.sin(a))*1e6, lw=2, color='k')
+    
+    AX[0].set_xlim(-4, 4)
+    AX[0].set_ylim(-4, 4)
+    AX[1].set_xlim(-4, 4)
+    
+    if len(particles) <= 20:
+        AX[1].legend(bbox_to_anchor=(1.01, 1), loc=2, borderaxespad=0.)
+
+###Body:
+path = "/Users/bab226/Documents/yale_research/pybromo_sims/test5/"
+S = pbm.ParticlesSimulation.from_datafile('e68ec0', path)
+
+plot_emission(S, slice_=(0, 4e6, 100), em_th=0.05)
+
+plot_tracks_r(S, slice_=(0e6, 4e6, 100))
+
+start = 0
+num_chunks = 50
+for chunk in range(0,num_chunks):
+    end = start + (S.t_max/S.t_step)/num_chunks
+    plot_tracks(S, slice_=(start, end, 50), step=start, chunk=chunk) #particles=[9])
+    start = end
+
+#S.store.close()
+#plot_tracks_r(S) #particles=[2, 5, 7, 22, 30])
+#plot_tracks(S, slice_=(1.9e6, 2e6, 100), particles=[1])
+#plot_emission(S)
+#p = pbm.plotter.EmissionPlotter(S, duration=1, decimate=100, color_pop=False)
+
+#p = pbm.plotter.TrackEmPlotter(S, duration=0.005, decimate=20)
+#
+#Theory:
+    
+# D = 1E-10
+# time = 10.  # seconds
+# sigma = np.sqrt(2*D*3*time)
+# print('Displacement (std_dev): %.2f um' % (sigma*1e6))
+
+# space = 1e-6  # m
+# time = 1.*space**2/(2*D*3)
+# print('Time for %.1f um displacement: %.1g s' % (space*1e6, time))
+
